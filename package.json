@@ -22,7 +22,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dennoa/azure-sso-handler.git"
+    "url": "git+https://github.com/dennoa/azure-sso-handler.git"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.50.1",
