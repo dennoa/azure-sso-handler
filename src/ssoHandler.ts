@@ -10,7 +10,6 @@ export interface AzureSSOConfig {
   tenantId: string;
   scope: string;
   redirectUri: string;
-  shouldLogoutFromAzure?: boolean;
   cookieNames?: {
     accessToken: string;
     idToken: string;
@@ -160,13 +159,7 @@ export class AzureSSOHandler {
       res.clearCookie(cookieNames.idToken, opts);
       res.clearCookie(cookieNames.refreshToken, opts);
     }
-
-    const returnUrl = req.query?.return_url || '/';
-    const logoutUrl = this.config.shouldLogoutFromAzure
-      ? `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/logout?` +
-        `post_logout_redirect_uri=${encodeURIComponent(returnUrl)}`
-      : returnUrl;
-    this._redirect(res, logoutUrl);
+    this._redirect(res, req.query?.return_url || '/');
   }
 
   public async validate(req: any, res: any, next?: any): Promise<void> {

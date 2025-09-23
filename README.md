@@ -5,9 +5,8 @@ const config: AzureSSOConfig = {
   clientId: 'clientId';
   clientSecret: 'clientSecret';
   tenantId: 'tenantId';
-  scope: 'scope1,scope2';
+  scope: 'openid offline_access';
   redirectUri: 'https://my.redirect.url';
-  shouldLogoutFromAzure?: false;
   cookieNames: {
     accessToken: 'access_token';
     idToken: 'id_token';

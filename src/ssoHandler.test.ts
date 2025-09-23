@@ -8,7 +8,6 @@ describe('AzureSSOHandler', () => {
     tenantId: 'test-tenant-id',
     scope: 'openid profile email',
     redirectUri: 'http://localhost/callback',
-    shouldLogoutFromAzure: true,
     cookieNames: defaultCookieNames,
   };
 

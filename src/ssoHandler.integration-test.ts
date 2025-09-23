@@ -11,7 +11,6 @@ const sso = new AzureSSOHandler({
   tenantId: process.env.AZURE_TENANT_ID || 'tenant-id',
   scope: process.env.AZURE_SCOPE || 'openid offline_access',
   redirectUri: process.env.AZURE_REDIRECT_URI || 'http://localhost:3000/callback',
-  shouldLogoutFromAzure: (process.env.AZURE_LOGOUT === 'true'),
   cookieNames: {
     accessToken: process.env.COOKIE_NAME_ACCESS_TOKEN || 'access_token',
     idToken: process.env.COOKIE_NAME_ID_TOKEN || 'id_token',
