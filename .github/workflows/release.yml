@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['*.*']
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Extract tag
+        id: extract-tag
+        run: echo "::set-output name=tag::$(basename $GITHUB_REF)"
+
+      - name: Update package.json with tag version
+        run: |
+          sed -i "s/\"version\": \".*\"/\"version\": \"${{ steps.extract-tag.outputs.tag }}\"/" package.json
+
+      - name: Update .nmprc
+        run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+
+      - name: install dependencies
+        run: npm ci
+
+      - name: build
+        run: npm run build
+
+      - name: prune for production
+        run: npm prune --production
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@dennoa'
+
+      - run: npm publish --access restricted
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

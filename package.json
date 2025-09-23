@@ -1,0 +1,43 @@
+{
+  "name": "azure-sso-handler",
+  "version": "0.1.0",
+  "description": "Azure SSO Handler library for authentication and token management.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:server": "npm run build && dotenvx run -- node dist/ssoHandler.integration-test.js"
+  },
+  "keywords": [
+    "azure",
+    "sso",
+    "authentication",
+    "typescript"
+  ],
+  "author": "dennoa",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dennoa/azure-sso-handler.git"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.50.1",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.5.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "jest": "^30.1.3",
+    "ts-jest": "^29.4.4",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^1.17.2",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0"
+  }
+}
