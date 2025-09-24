@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Azure SSO Handler Test</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    button { margin: 1em 0.5em 1em 0; padding: 0.5em 1.5em; font-size: 1em; }
+    #result { margin-top: 2em; }
+  </style>
+</head>
+<body>
+  <h1>Azure SSO Handler Test Page</h1>
+  <button id="loginBtn">Login</button>
+  <button id="validateBtn">Validate</button>
+  <button id="logoutBtn">Logout with redirect</button>
+  <button id="logoutBtn2">Logout without redirect</button>
+  <div id="result"></div>
+  <script>
+    function validate() {
+      fetch('/validate')
+        .then(response => {
+          if (response.status === 200) {
+            return response.json();
+          } else {
+            throw new Error('Not logged in');
+          }
+        })
+        .then(data => {
+          document.getElementById('result').innerText = JSON.stringify(data);
+        })
+        .catch(err => {
+          document.getElementById('result').innerText = err.message;
+        });
+    }
+    document.getElementById('loginBtn').onclick = function() {
+      window.location.href = '/login?return_url=' + encodeURIComponent(window.location.href);
+    };
+    document.getElementById('validateBtn').onclick = validate;
+    document.getElementById('logoutBtn').onclick = function() {
+      window.location.href = '/logout?return_url=' + encodeURIComponent(window.location.href);
+    };
+    document.getElementById('logoutBtn2').onclick = function() {
+      fetch('/logout').then(validate).catch(err => {
+        document.getElementById('result').innerText = err.message;
+      });
+    };
+    document.addEventListener('DOMContentLoaded', validate);
+  </script>
+</body>
+</html>

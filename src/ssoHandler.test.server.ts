@@ -23,9 +23,11 @@ app.get('/callback', (req, res) => sso.handleAzureCallback(req, res));
 app.get('/refresh', (req, res) => sso.refresh(req, res));
 app.get('/logout', (req, res) => sso.logout(req, res));
 app.get('/validate', (req, res) => sso.validate(req, res));
+app.get('/', (req, res) => res.sendFile('ssoHandler.test.html', { root: __dirname }));
 
 app.listen(3000, () => console.log('Server running on http://localhost:3000'));
 
 // http://localhost:3000/login?return_url=http://localhost:3000/validate
 // http://localhost:3000/validate
+// http://localhost:3000/refresh
 // http://localhost:3000/logout?return_url=http://localhost:3000/validate

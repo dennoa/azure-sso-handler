@@ -1,8 +1,7 @@
-// Azure SSO Handler main class
-// Use generic types for request/response to avoid Node.js dependency
-const msal = require('@azure/msal-node');
-const jwt = require('jsonwebtoken');
-const jwksRsa = require('jwks-rsa');
+import msal from '@azure/msal-node';
+import type { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import jwksRsa from 'jwks-rsa';
 
 export interface AzureSSOConfig {
   clientId: string;
@@ -41,24 +40,13 @@ export class AzureSSOHandler {
   }
 
   // Initiate login flow by redirecting to Azure
-  public login(req: any, res: any): void {
-    const authorizeUrl = this._buildAuthorizeUrl(req);
-    this._redirect(res, authorizeUrl);
+  // Use generic types for request/response to avoid specific dependencies
+  public login(req: Request, res: Response): void {
+    const authorizeUrl = this._buildAuthorizeUrl(req.query.return_url as string || '/', 'none');
+    res.redirect(authorizeUrl);
   }
 
-  private _redirect(res: any, url: string) {
-    if (res.redirect) {
-      res.redirect(url);
-    } else if (res.writeHead && res.end) {
-      res.writeHead(302, { Location: url });
-      res.end();
-    } else {
-      throw new Error('Response object does not support redirection');
-    }
-  }
-
-  private _buildAuthorizeUrl(req: any): string {
-    const state = req.query?.return_url || '/';
+  private _buildAuthorizeUrl(state: string, prompt: string): string {
     return (
       `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/authorize?` +
       `client_id=${encodeURIComponent(this.config.clientId)}` +
@@ -66,15 +54,21 @@ export class AzureSSOHandler {
       `&redirect_uri=${encodeURIComponent(this.config.redirectUri)}` +
       `&response_mode=query` +
       `&scope=${encodeURIComponent(this.config.scope)}` +
-      `&state=${encodeURIComponent(state)}`
+      `&state=${encodeURIComponent(state)}` +
+      `&prompt=${prompt}`
     );
   }
 
   // Handle callback from Azure to exchange code for tokens using MSAL
-  public async handleAzureCallback(req: any, res: any): Promise<void> {
-    const code = req.query?.code;
+  public async handleAzureCallback(req: Request, res: Response): Promise<void> {
+    const error = req.query.error as string;
+    if (error) {
+      this._handleAzureCallbackError(error, req.query.state as string || '/', res);
+      return;
+    }
+    const code = req.query.code as string;
     if (!code) {
-      res.status?.(400)?.send?.('Missing authorization code');
+      res.status(400).json({ error: 'Missing authorization code' });
       return;
     }
     try {
@@ -84,18 +78,19 @@ export class AzureSSOHandler {
         scopes: this.config.scope.split(','),
         redirectUri: this.config.redirectUri,
       });
-      if (res.cookie) {
-        this._setCookies(response, res);
-      }
-      const returnUrl = req.query?.state || '/';
-      this._redirect(res, returnUrl);
+      this._setCookies(response, res);
+      res.redirect(req.query.state as string || '/');
     } catch (err: any) {
-      if (res.status && res.send) {
-        res.status(401).send('Token exchange failed: ' + err.message);
-      } else {
-        throw err;
-      }
+      res.status(401).send(`Token exchange failed: ${err.message}`);
     }
+  }
+
+  private _handleAzureCallbackError(error: string, state: string, res: any) {
+    if (error === 'login_required' || error === 'interaction_required' || error === 'consent_required') {
+      res.redirect(this._buildAuthorizeUrl(state, 'login'));
+      return;
+    }
+    res.status(401).send(`Token exchange failed: ${error}`);
   }
 
   private _getCca() {
@@ -126,9 +121,9 @@ export class AzureSSOHandler {
   // Refresh tokens as required
   public async refresh(req: any, res: any): Promise<void> {
     const cookieNames = this.config.cookieNames || defaultCookieNames;
-    const refreshToken = req.cookies?.[cookieNames.refreshToken];
+    const refreshToken = req.cookies[cookieNames.refreshToken];
     if (!refreshToken) {
-      res.status?.(400)?.send?.('Missing refresh token');
+      res.status(400).json({ error: 'Missing refresh token' });
       return;
     }
     try {
@@ -137,35 +132,31 @@ export class AzureSSOHandler {
         refreshToken,
         scopes: this.config.scope.split(','),
       });
-      if (res.cookie) {
-        this._setCookies(response, res);
-      }
-      res.status?.(200)?.send?.('Tokens refreshed');
+      this._setCookies(response, res);
+      res.status(204).send();
     } catch (err: any) {
-      if (res.status && res.send) {
-        res.status(401).send('Token refresh failed: ' + err.message);
-      } else {
-        throw err;
-      }
+      res.status(401).json({ error: `Token refresh failed: ${err.message}` });
     }
   }
 
   // Logout by clearing cookies and optionally redirecting to Azure logout
   public logout(req: any, res: any): void {
-    if (res.clearCookie) {
-      const opts = { path: '/' };
-      const cookieNames = this.config.cookieNames || defaultCookieNames;
-      res.clearCookie(cookieNames.accessToken, opts);
-      res.clearCookie(cookieNames.idToken, opts);
-      res.clearCookie(cookieNames.refreshToken, opts);
+    const opts = { path: '/' };
+    const cookieNames = this.config.cookieNames || defaultCookieNames;
+    res.clearCookie(cookieNames.accessToken, opts);
+    res.clearCookie(cookieNames.idToken, opts);
+    res.clearCookie(cookieNames.refreshToken, opts);
+    if (req.query.return_url) {
+      res.redirect(req.query.return_url);
+    } else {
+      res.status(204).send();
     }
-    this._redirect(res, req.query?.return_url || '/');
   }
 
   public async validate(req: any, res: any, next?: any): Promise<void> {
     const cookieNames = this.config.cookieNames || defaultCookieNames;
-    const accessToken = req.cookies?.[cookieNames.accessToken];
-    const idToken = req.cookies?.[cookieNames.idToken];
+    const accessToken = req.cookies[cookieNames.accessToken];
+    const idToken = req.cookies[cookieNames.idToken];
     const result = await this.validateTokens(accessToken, idToken);
     if (result.isValidAccessToken || result.isValidIdToken) {
       if (next) {
@@ -173,9 +164,9 @@ export class AzureSSOHandler {
         req[cookieNames.idToken] = result.decodedIdToken;
         return next();
       }
-      res.status?.(200)?.json?.(result);
+      res.status(200).json(result);
     } else {
-      res.status?.(401)?.json?.(result);
+      res.status(401).json(result);
     }
   }
   

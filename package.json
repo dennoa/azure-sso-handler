@@ -12,9 +12,11 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-html",
+    "build:prod": "tsc --project tsconfig.prod.json",
+    "copy-html": "copyfiles -u 1 \"src/**/*.html\" dist/",
     "test": "jest",
-    "test:server": "npm run build && dotenvx run -- node dist/ssoHandler.integration-test.js"
+    "test:server": "npm run build && dotenvx run -- node dist/ssoHandler.test.server.js"
   },
   "keywords": [
     "azure",
@@ -34,13 +36,14 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.5.2",
     "cookie-parser": "^1.4.7",
-    "express": "^5.1.0",
+    "copyfiles": "^2.4.1",
     "jest": "^30.1.3",
     "ts-jest": "^29.4.4",
     "typescript": "^5.0.0"
   },
   "dependencies": {
     "@azure/msal-node": "^3.7.4",
+    "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0"
   }
