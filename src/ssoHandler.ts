@@ -3,17 +3,26 @@ import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import jwksRsa from 'jwks-rsa';
 
+interface AzureSSOCookieNames {
+  accessToken: string;
+  idToken: string;
+  refreshToken: string;
+}
+
+interface AzureSSOCookieOpts {
+  path?: string;
+  samesite?: string;
+  expiresInSecs?: number;
+}
+
 export interface AzureSSOConfig {
   clientId: string;
   clientSecret: string;
   tenantId: string;
   scope: string;
   redirectUri: string;
-  cookieNames?: {
-    accessToken: string;
-    idToken: string;
-    refreshToken: string;
-  }
+  cookieNames?: AzureSSOCookieNames;
+  cookieOpts?: AzureSSOCookieOpts;
 }
 
 export interface TokenValidationResult {
@@ -23,18 +32,30 @@ export interface TokenValidationResult {
   decodedIdToken?: any;
 }
 
-export const defaultCookieNames = {
+export const defaultCookieNames: AzureSSOCookieNames = {
   accessToken: 'access_token',
   idToken: 'id_token',
   refreshToken: 'refresh_token',
 };
 
+export const defaultCookieOpts: AzureSSOCookieOpts = {
+  path: '/',
+  samesite: 'strict',
+  expiresInSecs: 3600,
+};
+
 export class AzureSSOHandler {
   private config: AzureSSOConfig;
+  private cookieOpts: AzureSSOCookieOpts;
   private jwksClient: any;
 
   constructor(config: AzureSSOConfig) {
     this.config = config;
+    this.cookieOpts = {
+      path: config.cookieOpts?.path ?? defaultCookieOpts.path,
+      samesite: config.cookieOpts?.samesite ?? defaultCookieOpts.samesite,
+      expiresInSecs: config.cookieOpts?.expiresInSecs ?? defaultCookieOpts.expiresInSecs,
+    };
     const jwksUri = `https://login.microsoftonline.com/${this.config.tenantId}/discovery/v2.0/keys`;
     this.jwksClient = jwksRsa({ jwksUri });
   }
@@ -104,8 +125,9 @@ export class AzureSSOHandler {
   }
 
   private _setCookies(response: any, res: any) {
-    const expires = new Date(Date.now() + (response.expires_in || 3600) * 1000);
-    const opts = { httpOnly: true, expires, path: '/', secure: true, sameSite: 'none' };
+    const expiresInSecs = Math.min(response.expires_in ?? this.cookieOpts.expiresInSecs, this.cookieOpts.expiresInSecs!);
+    const expires = new Date(Date.now() + expiresInSecs * 1000);
+    const opts = { httpOnly: true, expires, path: this.cookieOpts.path, secure: true, sameSite: this.cookieOpts.samesite };
     const cookieNames = this.config.cookieNames || defaultCookieNames;
     if (response.accessToken) {
       res.cookie(cookieNames.accessToken, response.accessToken, opts);
@@ -141,7 +163,7 @@ export class AzureSSOHandler {
 
   // Logout by clearing cookies and optionally redirecting to Azure logout
   public logout(req: any, res: any): void {
-    const opts = { path: '/' };
+    const opts = { path: this.cookieOpts.path };
     const cookieNames = this.config.cookieNames || defaultCookieNames;
     res.clearCookie(cookieNames.accessToken, opts);
     res.clearCookie(cookieNames.idToken, opts);
