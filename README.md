@@ -1,7 +1,7 @@
 # azure-sso-handler
 
 1. Assumes use of `express` with all of its request / response handling.
-1. The Azure access token never seems to pass verification against the keystore but the id token is fine. For this reason only one valid token is required in order to be authenticated.
+1. The Azure access token never seems to pass verification against the keystore but the id token is fine. You can specify in the config to accept an invalid access token in this case.
 
 ``` ts
 const config: AzureSSOConfig = {
@@ -14,7 +14,9 @@ const config: AzureSSOConfig = {
     accessToken: 'access_token';
     idToken: 'id_token';
     refreshToken: 'refresh_token';
-  }
+  },
+  allowInvalidAccessToken: true,
+  allowInvalidIdToken: false,
 };
 
 const handler = new AzureSSOHandler(config);

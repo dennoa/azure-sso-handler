@@ -23,6 +23,8 @@ export interface AzureSSOConfig {
   redirectUri: string;
   cookieNames?: AzureSSOCookieNames;
   cookieOpts?: AzureSSOCookieOpts;
+  allowInvalidAccessToken?: boolean;
+  allowInvalidIdToken?: boolean;
 }
 
 export interface TokenValidationResult {
@@ -180,7 +182,9 @@ export class AzureSSOHandler {
     const accessToken = req.cookies[cookieNames.accessToken];
     const idToken = req.cookies[cookieNames.idToken];
     const result = await this.validateTokens(accessToken, idToken);
-    if (result.isValidAccessToken || result.isValidIdToken) {
+    const isAcceptableAccessToken = result.isValidAccessToken || this.config.allowInvalidAccessToken;
+    const isAcceptableIdToken = result.isValidIdToken || this.config.allowInvalidIdToken;
+    if (isAcceptableAccessToken && isAcceptableIdToken) {
       if (next) {
         req[cookieNames.accessToken] = result.decodedAccessToken;
         req[cookieNames.idToken] = result.decodedIdToken;

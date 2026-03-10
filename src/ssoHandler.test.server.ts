@@ -16,6 +16,7 @@ const sso = new AzureSSOHandler({
     idToken: process.env.COOKIE_NAME_ID_TOKEN || 'id_token',
     refreshToken: process.env.COOKIE_NAME_REFRESH_TOKEN || 'refresh_token',
   },
+  allowInvalidAccessToken: true,
 });
 
 app.get('/login', (req, res) => sso.login(req, res));

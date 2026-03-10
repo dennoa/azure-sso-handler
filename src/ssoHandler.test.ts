@@ -179,11 +179,11 @@ describe('AzureSSOHandler', () => {
     expect((req as any).id_token?.payload.name).toBe('Test User');
   });
 
-  it('should return 401 if the both cookies cannot be validated', async () => {
+  it('should return 401 if the access token cookie cannot be validated', async () => {
     const publicKey = 'test-secret';
     const jwtOpts = { expiresIn: 3600, header: { kid: 'testkid', alg: 'HS256' } };
     const testAccessToken = jwt.sign({ sub: '12345' }, publicKey, jwtOpts);
-    const testIdToken = jwt.sign({ sub: '12345', name: 'Test User' }, publicKey, jwtOpts);
+    const testIdToken = jwt.sign({ sub: '12345', name: 'Test User' }, 'other-secret', jwtOpts);
     req.cookies['access_token'] = testAccessToken;
     req.cookies['id_token'] = testIdToken;
     getSigningKey.mockReturnValue({ getPublicKey: () => 'other-secret' });
@@ -192,6 +192,62 @@ describe('AzureSSOHandler', () => {
     expect(res.json).toHaveBeenCalled();
     const json = (res.json as jest.Mock).mock.calls[0][0];
     expect(json.isValidAccessToken).toBe(false);
+    expect(json.isValidIdToken).toBe(true);
+    expect(json.decodedAccessToken.payload.sub).toBe('12345');
+    expect(json.decodedIdToken.payload.name).toBe('Test User');
+  });
+
+  it('should return 200 if the access token cookie cannot be validated but this is acceptable', async () => {
+    const publicKey = 'test-secret';
+    const jwtOpts = { expiresIn: 3600, header: { kid: 'testkid', alg: 'HS256' } };
+    const testAccessToken = jwt.sign({ sub: '12345' }, publicKey, jwtOpts);
+    const testIdToken = jwt.sign({ sub: '12345', name: 'Test User' }, 'other-secret', jwtOpts);
+    req.cookies['access_token'] = testAccessToken;
+    req.cookies['id_token'] = testIdToken;
+    getSigningKey.mockReturnValue({ getPublicKey: () => 'other-secret' });
+    handler = new AzureSSOHandler({ ...config, allowInvalidAccessToken: true })
+    await handler.validate(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalled();
+    const json = (res.json as jest.Mock).mock.calls[0][0];
+    expect(json.isValidAccessToken).toBe(false);
+    expect(json.isValidIdToken).toBe(true);
+    expect(json.decodedAccessToken.payload.sub).toBe('12345');
+    expect(json.decodedIdToken.payload.name).toBe('Test User');
+  });
+
+  it('should return 401 if the id token cookie cannot be validated', async () => {
+    const publicKey = 'test-secret';
+    const jwtOpts = { expiresIn: 3600, header: { kid: 'testkid', alg: 'HS256' } };
+    const testAccessToken = jwt.sign({ sub: '12345' }, 'other-secret', jwtOpts);
+    const testIdToken = jwt.sign({ sub: '12345', name: 'Test User' }, publicKey, jwtOpts);
+    req.cookies['access_token'] = testAccessToken;
+    req.cookies['id_token'] = testIdToken;
+    getSigningKey.mockReturnValue({ getPublicKey: () => 'other-secret' });
+    await handler.validate(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalled();
+    const json = (res.json as jest.Mock).mock.calls[0][0];
+    expect(json.isValidAccessToken).toBe(true);
+    expect(json.isValidIdToken).toBe(false);
+    expect(json.decodedAccessToken.payload.sub).toBe('12345');
+    expect(json.decodedIdToken.payload.name).toBe('Test User');
+  });
+
+  it('should return 200 if the id token cookie cannot be validated but this is acceptable', async () => {
+    const publicKey = 'test-secret';
+    const jwtOpts = { expiresIn: 3600, header: { kid: 'testkid', alg: 'HS256' } };
+    const testAccessToken = jwt.sign({ sub: '12345' }, 'other-secret', jwtOpts);
+    const testIdToken = jwt.sign({ sub: '12345', name: 'Test User' }, publicKey, jwtOpts);
+    req.cookies['access_token'] = testAccessToken;
+    req.cookies['id_token'] = testIdToken;
+    getSigningKey.mockReturnValue({ getPublicKey: () => 'other-secret' });
+    handler = new AzureSSOHandler({ ...config, allowInvalidIdToken: true })
+    await handler.validate(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalled();
+    const json = (res.json as jest.Mock).mock.calls[0][0];
+    expect(json.isValidAccessToken).toBe(true);
     expect(json.isValidIdToken).toBe(false);
     expect(json.decodedAccessToken.payload.sub).toBe('12345');
     expect(json.decodedIdToken.payload.name).toBe('Test User');
