@@ -46,15 +46,16 @@ describe('AzureSSOHandler', () => {
     handler.login(req, res);
     expect(res.redirect).toHaveBeenCalled();
     const url = (res.redirect as jest.Mock).mock.calls[0][0];
+    const expectedState = JSON.stringify({ return_url: '/dashboard', retryCount: 0 });
     expect(url).toContain(config.tenantId);
     expect(url).toContain(`client_id=${config.clientId}`);
-    expect(url).toContain(`state=${encodeURIComponent('/dashboard')}`);
+    expect(url).toContain(`state=${encodeURIComponent(expectedState)}`);
     expect(url).toContain('prompt=none');
   });
 
   it('should handle a successful login callback', async () => {
     req.query.code = 'auth-code';
-    req.query.state = '/dashboard';
+    req.query.state = JSON.stringify({ return_url: '/dashboard', retryCount: 0 });
     acquireTokenByCode.mockResolvedValue({
       accessToken: 'at',
       idToken: 'it',
@@ -71,21 +72,23 @@ describe('AzureSSOHandler', () => {
   ['login_required', 'interaction_required', 'consent_required'].forEach((error) => {
     it(`should handle a login callback indicating ${error}`, async () => {
       req.query.error = error;
-      req.query.state = '/dashboard';
+      req.query.state = JSON.stringify({ return_url: '/dashboard', retryCount: 0 });
+      const expectedState = JSON.stringify({ return_url: '/dashboard', retryCount: 1 });
       await handler.handleAzureCallback(req, res);
       expect(res.cookie).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalled();
       const url = (res.redirect as jest.Mock).mock.calls[0][0];
       expect(url).toContain(config.tenantId);
       expect(url).toContain(`client_id=${config.clientId}`);
-      expect(url).toContain(`state=${encodeURIComponent('/dashboard')}`);
-      expect(url).toContain('prompt=login');
+      expect(url).toContain(`state=${encodeURIComponent(expectedState)}`);
+      const expectedPrompt = error === 'consent_required' ? 'consent' : 'login';
+      expect(url).toContain(`prompt=${expectedPrompt}`);
     });
   });
 
   it('should handle a failed token exchange', async () => {
     req.query.code = 'auth-code';
-    req.query.state = '/dashboard';
+    req.query.state = JSON.stringify({ return_url: '/dashboard', retryCount: 0 });
     acquireTokenByCode.mockRejectedValue(new Error('Your token is garbage'));
     await handler.handleAzureCallback(req, res);
     expect(res.cookie).not.toHaveBeenCalled();

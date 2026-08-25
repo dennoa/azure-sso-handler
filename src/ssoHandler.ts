@@ -25,6 +25,7 @@ export interface AzureSSOConfig {
   cookieOpts?: AzureSSOCookieOpts;
   allowInvalidAccessToken?: boolean;
   allowInvalidIdToken?: boolean;
+  initialPrompt?: 'none' | 'login' | 'consent' | 'select_account';
 }
 
 export interface TokenValidationResult {
@@ -62,10 +63,19 @@ export class AzureSSOHandler {
     this.jwksClient = jwksRsa({ jwksUri });
   }
 
+  private _getReturnUrl(req: Request): string {
+    const return_url = req.query.return_url as string || '/';
+    return return_url.startsWith('/') ? return_url : '/';
+  }
+
   // Initiate login flow by redirecting to Azure
   // Use generic types for request/response to avoid specific dependencies
   public login(req: Request, res: Response): void {
-    const authorizeUrl = this._buildAuthorizeUrl(req.query.return_url as string || '/', 'none');
+    const state = JSON.stringify({
+      return_url: this._getReturnUrl(req),
+      retryCount: 0,
+    });
+    const authorizeUrl = this._buildAuthorizeUrl(state, this.config.initialPrompt || 'none');
     res.redirect(authorizeUrl);
   }
 
@@ -86,7 +96,7 @@ export class AzureSSOHandler {
   public async handleAzureCallback(req: Request, res: Response): Promise<void> {
     const error = req.query.error as string;
     if (error) {
-      this._handleAzureCallbackError(error, req.query.state as string || '/', res);
+      this._handleAzureCallbackError(error, req.query.state as string, res);
       return;
     }
     const code = req.query.code as string;
@@ -98,22 +108,39 @@ export class AzureSSOHandler {
       const cca = this._getCca();
       const response = await cca.acquireTokenByCode({
         code,
-        scopes: this.config.scope.split(','),
+        scopes: this.config.scope.split(/\s+/),
         redirectUri: this.config.redirectUri,
       });
       this._setCookies(response, res);
-      res.redirect(req.query.state as string || '/');
+      const { return_url } = JSON.parse(req.query.state as string);
+      res.redirect(return_url || '/');
     } catch (err: any) {
       res.status(401).send(`Token exchange failed: ${err.message}`);
     }
   }
 
   private _handleAzureCallbackError(error: string, state: string, res: any) {
-    if (error === 'login_required' || error === 'interaction_required' || error === 'consent_required') {
-      res.redirect(this._buildAuthorizeUrl(state, 'login'));
-      return;
+    try {
+      const parsedState = JSON.parse(state);
+      if (parsedState.retryCount > 2) {
+        res.status(401).send(`Token exchange failed: ${error}`);
+        return;
+      }
+      parsedState.retryCount = parsedState.retryCount + 1;
+      const newState = JSON.stringify(parsedState);
+      if (error === 'login_required' || error === 'interaction_required') {
+        const prompt = (parsedState.retryCount === 1) ? 'login' : 'select_account';
+        res.redirect(this._buildAuthorizeUrl(newState, prompt));
+        return;
+      }
+      if (error === 'consent_required') {
+        res.redirect(this._buildAuthorizeUrl(newState, 'consent'));
+        return;
+      }
+      res.status(401).send(`Token exchange failed: ${error}`);
+    } catch (err: any) {
+      res.status(401).send('Token exchange failed');
     }
-    res.status(401).send(`Token exchange failed: ${error}`);
   }
 
   private _getCca() {
