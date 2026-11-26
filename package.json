@@ -15,8 +15,7 @@
     "build": "tsc && npm run copy-html",
     "build:prod": "tsc --project tsconfig.prod.json",
     "copy-html": "copyfiles -u 1 \"src/**/*.html\" dist/",
-    "test": "jest",
-    "test:server": "npm run build && dotenvx run -- node dist/ssoHandler.test.server.js"
+    "test": "npm run build && dotenvx run -- node dist/ssoHandler.test.server.js"
   },
   "keywords": [
     "azure",
@@ -33,12 +32,9 @@
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.38.2",
     "@types/cookie-parser": "^1.4.10",
-    "@types/jest": "^30.0.0",
     "@types/node": "^26.6.11",
     "cookie-parser": "^1.4.7",
     "copyfiles": "^2.4.1",
-    "jest": "^30.5.2",
-    "ts-jest": "^29.4.15",
     "typescript": "^7.0.2"
   },
   "dependencies": {
