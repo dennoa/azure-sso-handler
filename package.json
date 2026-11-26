@@ -12,8 +12,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && npm run copy-html",
-    "build:prod": "tsc --project tsconfig.prod.json",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc && npm run copy-html",
+    "build:prod": "npm run clean && tsc --project tsconfig.prod.json",
     "copy-html": "copyfiles -u 1 \"src/**/*.html\" dist/",
     "test": "npm run build && dotenvx run -- node dist/ssoHandler.test.server.js"
   },
