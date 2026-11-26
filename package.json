@@ -31,20 +31,20 @@
     "url": "git+https://github.com/dennoa/azure-sso-handler.git"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.50.1",
-    "@types/cookie-parser": "^1.4.9",
+    "@dotenvx/dotenvx": "^2.38.2",
+    "@types/cookie-parser": "^1.4.10",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.5.2",
+    "@types/node": "^26.6.11",
     "cookie-parser": "^1.4.7",
     "copyfiles": "^2.4.1",
-    "jest": "^30.1.3",
-    "ts-jest": "^29.4.4",
-    "typescript": "^5.0.0"
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@azure/msal-node": "^5.0.4",
-    "express": "^5.2.1",
+    "@azure/msal-node": "^7.2.3",
+    "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
-    "jwks-rsa": "^3.2.2"
+    "jwks-rsa": "^4.1.0"
   }
 }
